@@ -135,15 +135,15 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             WEIGHT: [
-                MessageHandler(filters.Text(["Начать заново"]), restart),
+                MessageHandler(filters.Regex(r"(?i)^начать\s+заново$"), restart),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)
             ],
             HEIGHT: [
-                MessageHandler(filters.Text(["Начать заново"]), restart),
+                MessageHandler(filters.Regex(r"(?i)^начать\s+заново$"), restart),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)
             ],
             AGE: [
-                MessageHandler(filters.Text(["Начать заново"]), restart),
+                MessageHandler(filters.Regex(r"(?i)^начать\s+заново$"), restart),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)
             ],
             ACTIVITY: [CallbackQueryHandler(get_activity)],
