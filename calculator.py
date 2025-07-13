@@ -128,7 +128,17 @@ def main():
 
     app.add_handler(conv_handler)
     app.add_handler(MessageHandler(filters.Text("Начать заново"), restart))
-    app.run_polling()
+
+    import os
+    PORT = int(os.environ.get('PORT', 8443))
+    WEBHOOK_PATH = f"/{TOKEN}"
+    WEBHOOK_URL = f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_path=WEBHOOK_PATH,
+        webhook_url=WEBHOOK_URL
+    )
 
 if __name__ == "__main__":
     main()
