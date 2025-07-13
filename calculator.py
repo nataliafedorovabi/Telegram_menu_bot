@@ -1,11 +1,13 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
+import logging
 
 # Этапы диалога
 WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
 
 # Стартовая команда
 async def start(update: Update, context: CallbackContext):
+    logger.info(f"START: user_id={update.effective_user.id}")
     keyboard = ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
     await update.message.reply_text(
         "Привет! Ответь на пару вопросов, чтобы подобрать меню именно под тебя 😊",
@@ -15,27 +17,33 @@ async def start(update: Update, context: CallbackContext):
     return WEIGHT
 
 async def get_weight(update: Update, context: CallbackContext):
+    logger.info(f"WEIGHT: user_id={update.effective_user.id}, text={update.message.text}")
     try:
         context.user_data['weight'] = int(update.message.text)
     except ValueError:
+        logger.warning(f"WEIGHT: invalid input from user_id={update.effective_user.id}: {update.message.text}")
         await update.message.reply_text("Пожалуйста, введите число (ваш вес в кг):")
         return WEIGHT
     await update.message.reply_text("Введите ваш рост (в см):")
     return HEIGHT
 
 async def get_height(update: Update, context: CallbackContext):
+    logger.info(f"HEIGHT: user_id={update.effective_user.id}, text={update.message.text}")
     try:
         context.user_data['height'] = int(update.message.text)
     except ValueError:
+        logger.warning(f"HEIGHT: invalid input from user_id={update.effective_user.id}: {update.message.text}")
         await update.message.reply_text("Пожалуйста, введите число (ваш рост в см):")
         return HEIGHT
     await update.message.reply_text("Введите ваш возраст:")
     return AGE
 
 async def get_age(update: Update, context: CallbackContext):
+    logger.info(f"AGE: user_id={update.effective_user.id}, text={update.message.text}")
     try:
         context.user_data['age'] = int(update.message.text)
     except ValueError:
+        logger.warning(f"AGE: invalid input from user_id={update.effective_user.id}: {update.message.text}")
         await update.message.reply_text("Пожалуйста, введите число (ваш возраст):")
         return AGE
     keyboard = [
@@ -51,6 +59,7 @@ async def get_age(update: Update, context: CallbackContext):
 
 async def get_activity(update: Update, context: CallbackContext):
     query = update.callback_query
+    logger.info(f"ACTIVITY: user_id={query.from_user.id}, data={query.data}")
     await query.answer()
     context.user_data['activity'] = float(query.data)
     keyboard = [
@@ -62,6 +71,7 @@ async def get_activity(update: Update, context: CallbackContext):
 
 async def get_goal(update: Update, context: CallbackContext):
     query = update.callback_query
+    logger.info(f"GOAL: user_id={query.from_user.id}, data={query.data}")
     await query.answer()
     goal = query.data
     weight = context.user_data['weight']
@@ -96,6 +106,7 @@ async def get_goal(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 async def restart(update: Update, context: CallbackContext):
+    logger.info(f"RESTART: user_id={update.effective_user.id}")
     context.user_data.clear()
     keyboard = ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
     await update.message.reply_text(
@@ -106,20 +117,33 @@ async def restart(update: Update, context: CallbackContext):
     return WEIGHT
 
 async def cancel(update: Update, context: CallbackContext):
+    logger.info(f"CANCEL: user_id={update.effective_user.id}")
     await update.message.reply_text("Диалог завершен.")
     return ConversationHandler.END
 
 # Основной запуск
 def main():
-    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    TOKEN = "1630388281:AAFGZGRG1T3UGjOowWvodg01bEYS0FEgCIg"
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
-            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
-            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
+            WEIGHT: [
+                MessageHandler(filters.Regex("^Начать заново$"), restart),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)
+            ],
+            HEIGHT: [
+                MessageHandler(filters.Regex("^Начать заново$"), restart),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)
+            ],
+            AGE: [
+                MessageHandler(filters.Regex("^Начать заново$"), restart),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)
+            ],
             ACTIVITY: [CallbackQueryHandler(get_activity)],
             GOAL: [CallbackQueryHandler(get_goal)],
         },
@@ -127,16 +151,13 @@ def main():
     )
 
     app.add_handler(conv_handler)
-    app.add_handler(MessageHandler(filters.Text("Начать заново"), restart))
-
+    # Удаляю глобальный MessageHandler для 'Начать заново'
     import os
-    PORT = int(os.environ.get('PORT', 8443))
-    WEBHOOK_URL = f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
     app.run_webhook(
         listen="0.0.0.0",
-        port=PORT,
+        port=int(os.environ.get('PORT', 8443)),
         url_path=TOKEN,
-        webhook_url=WEBHOOK_URL
+        webhook_url=f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
     )
 
 if __name__ == "__main__":
