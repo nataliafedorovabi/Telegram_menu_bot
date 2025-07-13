@@ -1,8 +1,10 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, CallbackContext,
+    MessageHandler, filters, ConversationHandler, CallbackQueryHandler
+)
 import os
-import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -68,7 +70,8 @@ async def get_activity(update: Update, context: CallbackContext):
     await query.answer()
     context.user_data['activity'] = float(query.data)
     keyboard = [
-        [InlineKeyboardButton("Похудеть", callback_data="Похудеть"), InlineKeyboardButton("Удерживать вес", callback_data="Удерживать вес")]
+        [InlineKeyboardButton("Похудеть", callback_data="Похудеть"),
+         InlineKeyboardButton("Удерживать вес", callback_data="Удерживать вес")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text("Какова ваша цель?", reply_markup=reply_markup)
@@ -96,19 +99,40 @@ async def get_goal(update: Update, context: CallbackContext):
     button = InlineKeyboardMarkup([
         [InlineKeyboardButton("Купить", url=buy_url)]
     ])
-    keyboard = ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
+    restart_inline = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Начать заново", callback_data="restart")]
+    ])
 
     await query.edit_message_text(
         f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы подобрать меню:",
         reply_markup=button
     )
-    # Отправляем отдельным сообщением клавиатуру для рестарта
+
     await context.bot.send_message(
         chat_id=query.message.chat_id,
         text="Если хотите начать заново, нажмите кнопку ниже:",
+        reply_markup=restart_inline
+    )
+
+    return ConversationHandler.END
+
+# Inline-кнопка "Начать заново"
+async def restart_callback(update: Update, context: CallbackContext):
+    query = update.callback_query
+    logger.info(f"RESTART (inline): user_id={query.from_user.id}")
+    await query.answer()
+    context.user_data.clear()
+    keyboard = ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Привет! Ответь на пару вопросов, чтобы подобрать меню именно под тебя 😊",
         reply_markup=keyboard
     )
-    return ConversationHandler.END
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Введите ваш вес (в кг):"
+    )
+    return WEIGHT
 
 async def restart(update: Update, context: CallbackContext):
     logger.info(f"RESTART: user_id={update.effective_user.id}")
@@ -147,12 +171,17 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)
             ],
             ACTIVITY: [CallbackQueryHandler(get_activity)],
-            GOAL: [CallbackQueryHandler(get_goal)],
+            GOAL: [
+                CallbackQueryHandler(get_goal),
+                CallbackQueryHandler(restart_callback, pattern="^restart$")
+            ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(restart_callback, pattern="^restart$"))
+
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get('PORT', 8443)),
