@@ -131,12 +131,11 @@ def main():
 
     import os
     PORT = int(os.environ.get('PORT', 8443))
-    WEBHOOK_PATH = f"/{TOKEN}"
     WEBHOOK_URL = f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_path=WEBHOOK_PATH,
+        url_path=TOKEN,
         webhook_url=WEBHOOK_URL
     )
 
