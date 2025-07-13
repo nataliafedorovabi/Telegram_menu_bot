@@ -1,6 +1,10 @@
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
-import logging
+import os
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Этапы диалога
 WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
@@ -123,9 +127,6 @@ async def cancel(update: Update, context: CallbackContext):
 
 # Основной запуск
 def main():
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-
     TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -151,8 +152,6 @@ def main():
     )
 
     app.add_handler(conv_handler)
-    # Удаляю глобальный MessageHandler для 'Начать заново'
-    import os
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get('PORT', 8443)),
