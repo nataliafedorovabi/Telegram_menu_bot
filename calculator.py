@@ -1,8 +1,7 @@
 import logging
 import os
 from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup,
-    ReplyKeyboardRemove
+    Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 )
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackContext,
@@ -12,53 +11,31 @@ from telegram.ext import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Этапы диалога
 WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
 
-# Команда /start
+# Команда /start или Начать заново
 async def start(update: Update, context: CallbackContext):
-    logger.info(f"START: user_id={update.effective_user.id}")
     context.user_data.clear()
-    keyboard = ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
     await update.message.reply_text(
         "Привет! Ответь на пару вопросов, чтобы подобрать меню именно под тебя 😊",
-        reply_markup=keyboard
+        reply_markup=ReplyKeyboardRemove()
     )
     await update.message.reply_text("Введите ваш вес (в кг):")
     return WEIGHT
 
-# Повторный старт при нажатии кнопки "Начать заново"
-async def restart(update: Update, context: CallbackContext):
-    logger.info(f"RESTART: user_id={update.effective_user.id}")
-    context.user_data.clear()
-    await update.message.reply_text(
-        "Хорошо, начнем сначала! 😊",
-        reply_markup=ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
-    )
-    await update.message.reply_text("Введите ваш вес (в кг):")
-    return WEIGHT
-
-# Кнопка "Начать заново" в inline-режиме
+# Обработка inline "Начать заново"
 async def restart_callback(update: Update, context: CallbackContext):
     query = update.callback_query
-    logger.info(f"RESTART (inline): user_id={query.from_user.id}")
     await query.answer()
     context.user_data.clear()
-    keyboard = ReplyKeyboardMarkup([["Начать заново"]], resize_keyboard=True)
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="Привет! Ответь на пару вопросов, чтобы подобрать меню именно под тебя 😊",
-        reply_markup=keyboard
-    )
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="Введите ваш вес (в кг):"
+        text="Начнем сначала! 😊 Введите ваш вес (в кг):"
     )
     return WEIGHT
 
 # Получение веса
 async def get_weight(update: Update, context: CallbackContext):
-    logger.info(f"WEIGHT: user_id={update.effective_user.id}, text={update.message.text}")
     try:
         context.user_data['weight'] = int(update.message.text)
     except ValueError:
@@ -69,7 +46,6 @@ async def get_weight(update: Update, context: CallbackContext):
 
 # Получение роста
 async def get_height(update: Update, context: CallbackContext):
-    logger.info(f"HEIGHT: user_id={update.effective_user.id}, text={update.message.text}")
     try:
         context.user_data['height'] = int(update.message.text)
     except ValueError:
@@ -80,15 +56,11 @@ async def get_height(update: Update, context: CallbackContext):
 
 # Получение возраста
 async def get_age(update: Update, context: CallbackContext):
-    logger.info(f"AGE: user_id={update.effective_user.id}, text={update.message.text}")
     try:
         context.user_data['age'] = int(update.message.text)
     except ValueError:
         await update.message.reply_text("Пожалуйста, введите число (ваш возраст):")
         return AGE
-
-    # Удаляем клавиатуру
-    await update.message.reply_text("Выберите уровень физической активности:", reply_markup=ReplyKeyboardRemove())
 
     keyboard = [
         [InlineKeyboardButton("1.2 - Минимальная", callback_data="1.2")],
@@ -101,12 +73,11 @@ async def get_age(update: Update, context: CallbackContext):
     await update.message.reply_text("Выберите уровень физической активности:", reply_markup=reply_markup)
     return ACTIVITY
 
-# Уровень активности
+# Обработка активности
 async def get_activity(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     context.user_data['activity'] = float(query.data)
-    logger.info(f"ACTIVITY: user_id={query.from_user.id}, data={query.data}")
 
     keyboard = [
         [
@@ -118,11 +89,10 @@ async def get_activity(update: Update, context: CallbackContext):
     await query.edit_message_text("Какова ваша цель?", reply_markup=reply_markup)
     return GOAL
 
-# Цель
+# Обработка цели
 async def get_goal(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
-    logger.info(f"GOAL: user_id={query.from_user.id}, data={query.data}")
 
     goal = query.data
     weight = context.user_data['weight']
@@ -130,7 +100,6 @@ async def get_goal(update: Update, context: CallbackContext):
     age = context.user_data['age']
     activity = context.user_data['activity']
 
-    # Расчет калорий
     base_cal = (655.1 + (9.563 * weight) + (2.35 * height) - (4.676 * age)) * activity
     if goal.lower() == "похудеть":
         base_cal *= 0.75
@@ -158,44 +127,32 @@ async def get_goal(update: Update, context: CallbackContext):
     )
     return ConversationHandler.END
 
-# Завершение диалога
+# Отмена
 async def cancel(update: Update, context: CallbackContext):
-    logger.info(f"CANCEL: user_id={update.effective_user.id}")
     await update.message.reply_text("Диалог завершен.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-# Основной запуск
+# Запуск
 def main():
-    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # 🔑 Вставь свой токен
+    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(restart_callback, pattern="^restart$")
+        ],
         states={
-            WEIGHT: [
-                MessageHandler(filters.Regex(r"(?i)^начать\s+заново$"), restart),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)
-            ],
-            HEIGHT: [
-                MessageHandler(filters.Regex(r"(?i)^начать\s+заново$"), restart),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)
-            ],
-            AGE: [
-                MessageHandler(filters.Regex(r"(?i)^начать\s+заново$"), restart),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)
-            ],
+            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
+            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
+            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
             ACTIVITY: [CallbackQueryHandler(get_activity)],
-            GOAL: [
-                CallbackQueryHandler(get_goal),
-                CallbackQueryHandler(restart_callback, pattern="^restart$")
-            ],
+            GOAL: [CallbackQueryHandler(get_goal)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     app.add_handler(conv_handler)
-    app.add_handler(CallbackQueryHandler(restart_callback, pattern="^restart$"))
-
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get('PORT', 8443)),
