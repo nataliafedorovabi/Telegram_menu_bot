@@ -2,6 +2,7 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 import os
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -134,15 +135,15 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             WEIGHT: [
-                MessageHandler(filters.Regex("^Начать заново$"), restart),
+                MessageHandler(filters.Text(["Начать заново"]), restart),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)
             ],
             HEIGHT: [
-                MessageHandler(filters.Regex("^Начать заново$"), restart),
+                MessageHandler(filters.Text(["Начать заново"]), restart),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)
             ],
             AGE: [
-                MessageHandler(filters.Regex("^Начать заново$"), restart),
+                MessageHandler(filters.Text(["Начать заново"]), restart),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)
             ],
             ACTIVITY: [CallbackQueryHandler(get_activity)],
