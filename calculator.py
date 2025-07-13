@@ -126,7 +126,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    TOKEN = "1630388281:AAFGZGRG1T3UGjOowWvodg01bEYS0FEgCIg"
+    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
