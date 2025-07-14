@@ -172,7 +172,10 @@ def main():
             ACTIVITY: [CallbackQueryHandler(get_activity)],
             GOAL: [CallbackQueryHandler(get_goal)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+        CommandHandler("cancel", cancel),
+        CommandHandler("start", start)  # добавлено, чтобы /start работал в любом состоянии
+    ],
     )
 
     app.add_handler(conv_handler)
