@@ -121,7 +121,7 @@ async def get_goal(update: Update, context: CallbackContext):
     )
 
     # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
-    folder_path = f"Telegram_menu_bot/menus/{calories}"
+    folder_path = f"menus/{calories}"
     if os.path.exists(folder_path):
         files_sent = 0
         for filename in os.listdir(folder_path):
