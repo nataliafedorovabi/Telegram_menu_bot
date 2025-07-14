@@ -17,7 +17,7 @@ WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
 async def start(update: Update, context: CallbackContext):
     context.user_data.clear()
     await update.message.reply_text(
-        "Привет! Ответь на пару вопросов, чтобы подобрать меню именно под тебя 😊",
+        "Привет! Ответьте на пару вопросов, чтобы подобрать меню именно под вас 😊",
         reply_markup=ReplyKeyboardRemove()
     )
     await update.message.reply_text("Введите ваш вес (в кг):")
