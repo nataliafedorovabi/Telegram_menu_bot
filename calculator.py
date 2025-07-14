@@ -20,7 +20,7 @@ async def start(update: Update, context: CallbackContext):
         "Привет! Ответь на пару вопросов, чтобы подобрать меню именно под тебя 😊",
         reply_markup=ReplyKeyboardRemove()
     )
-    await update.message.reply_text("Введи свой вес (в кг):")
+    await update.message.reply_text("Введите ваш вес (в кг):")
     return WEIGHT
 
 # Обработка inline "Начать заново"
@@ -30,7 +30,7 @@ async def restart_callback(update: Update, context: CallbackContext):
     context.user_data.clear()
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="Начнем сначала! 😊 Введи свой вес (в кг):"
+        text="Начнем сначала! 😊 Введите ваш вес (в кг):"
     )
     return WEIGHT
 
@@ -39,9 +39,9 @@ async def get_weight(update: Update, context: CallbackContext):
     try:
         context.user_data['weight'] = int(update.message.text)
     except ValueError:
-        await update.message.reply_text("Пожалуйста, введи число (твой вес в кг):")
+        await update.message.reply_text("Пожалуйста, введите число (ваш вес в кг):")
         return WEIGHT
-    await update.message.reply_text("Введи свой рост (в см):")
+    await update.message.reply_text("Введите ваш рост (в см):")
     return HEIGHT
 
 # Получение роста
@@ -49,9 +49,9 @@ async def get_height(update: Update, context: CallbackContext):
     try:
         context.user_data['height'] = int(update.message.text)
     except ValueError:
-        await update.message.reply_text("Пожалуйста, введи число (твой рост в см):")
+        await update.message.reply_text("Пожалуйста, введите число (ваш рост в см):")
         return HEIGHT
-    await update.message.reply_text("Введи свой возраст:")
+    await update.message.reply_text("Введите ваш возраст:")
     return AGE
 
 # Получение возраста
@@ -59,7 +59,7 @@ async def get_age(update: Update, context: CallbackContext):
     try:
         context.user_data['age'] = int(update.message.text)
     except ValueError:
-        await update.message.reply_text("Пожалуйста, введи число (твой возраст):")
+        await update.message.reply_text("Пожалуйста, введите число (ваш возраст):")
         return AGE
 
     keyboard = [
@@ -70,7 +70,7 @@ async def get_age(update: Update, context: CallbackContext):
         [InlineKeyboardButton("1.55 - Высокая", callback_data="1.55")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выбери уровень физической активности:", reply_markup=reply_markup)
+    await update.message.reply_text("Выберите уровень физической активности:", reply_markup=reply_markup)
     return ACTIVITY
 
 # Обработка активности
@@ -116,25 +116,36 @@ async def get_goal(update: Update, context: CallbackContext):
     ])
 
     await query.edit_message_text(
-        f"Тебе подходит {calories} ккал в день. Нажми кнопку ниже, чтобы скачать меню:",
+        f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы подобрать меню:",
         reply_markup=button
     )
 
-    # Отправка 3 файлов из соответствующей папки
-    folder_path = os.path.join("Telegram_menu_bot", "menus", str(calories))
-    if os.path.isdir(folder_path):
-        files = sorted(os.listdir(folder_path))[:3]
-        for file_name in files:
-            file_path = os.path.join(folder_path, file_name)
+    # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
+    folder_path = f"Telegram_menu_bot/menus/{calories}"
+    if os.path.exists(folder_path):
+        files_sent = 0
+        for filename in os.listdir(folder_path):
+            if files_sent >= 3:
+                break
+            file_path = os.path.join(folder_path, filename)
             if os.path.isfile(file_path):
-                with open(file_path, "rb") as f:
-                    await context.bot.send_document(chat_id=query.message.chat_id, document=f)
+                try:
+                    await context.bot.send_document(
+                        chat_id=query.message.chat_id,
+                        document=open(file_path, "rb")
+                    )
+                    files_sent += 1
+                except Exception as e:
+                    logger.error(f"Ошибка при отправке файла {file_path}: {e}")
     else:
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Меню не найдено для вашей калорийности 😢")
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="Извините, меню для данной калорийности пока недоступно."
+        )
 
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="Если хочешь начать заново, нажми кнопку ниже:",
+        text="Если хотите начать заново, нажмите кнопку ниже:",
         reply_markup=restart_inline
     )
     return ConversationHandler.END
@@ -146,7 +157,7 @@ async def cancel(update: Update, context: CallbackContext):
 
 # Запуск
 def main():
-    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота
+    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота 
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
@@ -169,7 +180,7 @@ def main():
         listen="0.0.0.0",
         port=int(os.environ.get('PORT', 8443)),
         url_path=TOKEN,
-        webhook_url=f"https://your-server.com/{TOKEN}"  # Заменить на свой адрес
+        webhook_url=f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
     )
 
 if __name__ == "__main__":
