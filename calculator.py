@@ -116,7 +116,7 @@ async def get_goal(update: Update, context: CallbackContext):
     ])
 
     await query.edit_message_text(
-        f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы подобрать меню:",
+        f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы купить меню на 30 дней:",
         reply_markup=button
     )
 
