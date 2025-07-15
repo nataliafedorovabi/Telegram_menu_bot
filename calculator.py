@@ -139,8 +139,8 @@ async def get_goal(update: Update, context: CallbackContext):
     folder_path = f"menus/{calories}"
     if os.path.exists(folder_path):
         await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="Или попробуй меню на 7 дней:"
+            chat_id=query.message.chat_id,
+            text="Или попробуй меню на 7 дней:"
         )
         files_sent = 0
         for filename in os.listdir(folder_path):
