@@ -1,94 +1,3 @@
-import logging
-import os
-from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
-)
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackContext,
-    MessageHandler, filters, ConversationHandler, CallbackQueryHandler
-)
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
-
-# Команда /start или Начать заново
-async def start(update: Update, context: CallbackContext):
-    context.user_data.clear()
-    await update.message.reply_text(
-        "Привет! Ответьте на пару вопросов, чтобы подобрать меню именно под вас 😊",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    await update.message.reply_text("Введите ваш вес (в кг):")
-    return WEIGHT
-
-# Обработка inline "Начать заново"
-async def restart_callback(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-    context.user_data.clear()
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="Начнем сначала! 😊 Введите ваш вес (в кг):"
-    )
-    return WEIGHT
-
-# Получение веса
-async def get_weight(update: Update, context: CallbackContext):
-    try:
-        context.user_data['weight'] = int(update.message.text)
-    except ValueError:
-        await update.message.reply_text("Пожалуйста, введите число (ваш вес в кг):")
-        return WEIGHT
-    await update.message.reply_text("Введите ваш рост (в см):")
-    return HEIGHT
-
-# Получение роста
-async def get_height(update: Update, context: CallbackContext):
-    try:
-        context.user_data['height'] = int(update.message.text)
-    except ValueError:
-        await update.message.reply_text("Пожалуйста, введите число (ваш рост в см):")
-        return HEIGHT
-    await update.message.reply_text("Введите ваш возраст:")
-    return AGE
-
-# Получение возраста
-async def get_age(update: Update, context: CallbackContext):
-    try:
-        context.user_data['age'] = int(update.message.text)
-    except ValueError:
-        await update.message.reply_text("Пожалуйста, введите число (ваш возраст):")
-        return AGE
-
-    keyboard = [
-        [InlineKeyboardButton("1.2 - Минимальная", callback_data="1.2")],
-        [InlineKeyboardButton("1.3 - Низкая", callback_data="1.3")],
-        [InlineKeyboardButton("1.38 - Средняя", callback_data="1.38")],
-        [InlineKeyboardButton("1.43 - Выше среднего", callback_data="1.43")],
-        [InlineKeyboardButton("1.55 - Высокая", callback_data="1.55")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выберите уровень физической активности:", reply_markup=reply_markup)
-    return ACTIVITY
-
-# Обработка активности
-async def get_activity(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-    context.user_data['activity'] = float(query.data)
-
-    keyboard = [
-        [
-            InlineKeyboardButton("Похудеть", callback_data="Похудеть"),
-            InlineKeyboardButton("Удерживать вес", callback_data="Удерживать вес")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text("Какова ваша цель?", reply_markup=reply_markup)
-    return GOAL
-
 # Обработка цели
 async def get_goal(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -115,17 +24,12 @@ async def get_goal(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🔄 Начать заново", callback_data="restart")]
     ])
 
-    await query.edit_message_text(
-        f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы купить меню на 30 дней:",
-        reply_markup=button
-    )
-
     # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
     folder_path = f"menus/{calories}"
     if os.path.exists(folder_path):
         await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="Или попробуй меню на 7 дней:"
+            chat_id=query.message.chat_id,
+            text=f"Вам подходит {calories} ккал в день. Отправляю пробное меню на 7 дней:"
         )
         files_sent = 0
         for filename in os.listdir(folder_path):
@@ -147,48 +51,16 @@ async def get_goal(update: Update, context: CallbackContext):
             text="Извините, меню для данной калорийности пока недоступно."
         )
 
+    # Перенос блока "Купить" после файлов
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Меню на 30 дней можно купить нажав на кнопку ниже:",
+        reply_markup=button
+    )
+
     await context.bot.send_message(
         chat_id=query.message.chat_id,
         text="Если хотите начать заново, нажмите кнопку ниже:",
         reply_markup=restart_inline
     )
     return ConversationHandler.END
-
-# Отмена
-async def cancel(update: Update, context: CallbackContext):
-    await update.message.reply_text("Диалог завершен.", reply_markup=ReplyKeyboardRemove())
-    return ConversationHandler.END
-
-# Запуск
-def main():
-    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота 
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("start", start),
-            CallbackQueryHandler(restart_callback, pattern="^restart$")
-        ],
-        states={
-            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
-            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
-            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
-            ACTIVITY: [CallbackQueryHandler(get_activity)],
-            GOAL: [CallbackQueryHandler(get_goal)],
-        },
-        fallbacks=[
-        CommandHandler("cancel", cancel),
-        CommandHandler("start", start)  # добавлено, чтобы /start работал в любом состоянии
-    ],
-    )
-
-    app.add_handler(conv_handler)
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get('PORT', 8443)),
-        url_path=TOKEN,
-        webhook_url=f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
-    )
-
-if __name__ == "__main__":
-    main()
