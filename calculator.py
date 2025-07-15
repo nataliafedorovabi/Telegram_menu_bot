@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+from flask import Flask
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 )
@@ -8,12 +10,26 @@ from telegram.ext import (
     MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 )
 
+# Настраиваем логирование
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Flask-сервер для ответа на / (чтобы UptimeRobot не слал 404)
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def index():
+    return "Bot is alive", 200
+
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=3000)
+
+threading.Thread(target=run_flask).start()
+
+# Состояния
 WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
 
-# Команда /start или Начать заново
+# Команда /start
 async def start(update: Update, context: CallbackContext):
     context.user_data.clear()
     await update.message.reply_text(
@@ -120,7 +136,6 @@ async def get_goal(update: Update, context: CallbackContext):
         reply_markup=button
     )
 
-    # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
     folder_path = f"menus/{calories}"
     if os.path.exists(folder_path):
         await context.bot.send_message(
@@ -161,7 +176,7 @@ async def cancel(update: Update, context: CallbackContext):
 
 # Запуск
 def main():
-    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота 
+    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
@@ -177,9 +192,9 @@ def main():
             GOAL: [CallbackQueryHandler(get_goal)],
         },
         fallbacks=[
-        CommandHandler("cancel", cancel),
-        CommandHandler("start", start)  # добавлено, чтобы /start работал в любом состоянии
-    ],
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", start)
+        ],
     )
 
     app.add_handler(conv_handler)
