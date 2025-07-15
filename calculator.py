@@ -115,17 +115,12 @@ async def get_goal(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🔄 Начать заново", callback_data="restart")]
     ])
 
-    await query.edit_message_text(
-        f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы купить меню на 30 дней:",
-        reply_markup=button
-    )
-
     # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
     folder_path = f"menus/{calories}"
     if os.path.exists(folder_path):
         await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="Или попробуй меню на 7 дней:"
+        text=f"Вам подходит {calories} ккал в день. Отправляю пробное меню на 7 дней:"
         )
         files_sent = 0
         for filename in os.listdir(folder_path):
@@ -146,7 +141,28 @@ async def get_goal(update: Update, context: CallbackContext):
             chat_id=query.message.chat_id,
             text="Извините, меню для данной калорийности пока недоступно."
         )
-
+    menus_folder = "menus"
+    other_files_sent = 0
+    for item in os.listdir(menus_folder):
+        file_path = os.path.join(menus_folder, item)
+        if os.path.isfile(file_path):
+            try:
+                await context.bot.send_document(
+                    chat_id=query.message.chat_id,
+                    document=open(file_path, "rb")
+                )
+                other_files_sent += 1
+                if other_files_sent >= 3:
+                    break
+            except Exception as e:
+                logger.error(f"Ошибка при отправке файла {file_path}: {e}")
+            
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Меню на 30 дней можно купить нажав на кнопку ниже:",
+        reply_markup=button
+    )
+    
     await context.bot.send_message(
         chat_id=query.message.chat_id,
         text="Если хотите начать заново, нажмите кнопку ниже:",
