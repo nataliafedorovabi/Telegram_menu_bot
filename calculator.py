@@ -115,63 +115,80 @@ async def get_goal(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🔄 Начать заново", callback_data="restart")]
     ])
 
-    # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
-    # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
-folder_path = f"menus/{calories}"
-if os.path.exists(folder_path):
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text=f"Вам подходит {calories} ккал в день. Отправляю пробное меню на 7 дней:"
-    )
-    files_sent = 0
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):
-            try:
-                await context.bot.send_document(
-                    chat_id=query.message.chat_id,
-                    document=open(file_path, "rb")
-                )
-                files_sent += 1
-                if files_sent >= 3:
-                    break
-            except Exception as e:
-                logger.error(f"Ошибка при отправке файла {file_path}: {e}")
-else:
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="Извините, меню для данной калорийности пока недоступно."
+    await query.edit_message_text(
+        f"Вам подходит {calories} ккал в день. Нажмите кнопку ниже, чтобы купить меню на 30 дней:",
+        reply_markup=button
     )
 
-# ДОБАВЛЕНО: Отправка других одиночных файлов из папки menus/
-menus_folder = "menus"
-other_files_sent = 0
-for item in os.listdir(menus_folder):
-    file_path = os.path.join(menus_folder, item)
-    if os.path.isfile(file_path):
-        try:
-            await context.bot.send_document(
-                chat_id=query.message.chat_id,
-                document=open(file_path, "rb")
-            )
-            other_files_sent += 1
-            if other_files_sent >= 3:
+    # ДОБАВЛЕНО: Отправка файлов из соответствующей папки
+    folder_path = f"menus/{calories}"
+    if os.path.exists(folder_path):
+        await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Или попробуй меню на 7 дней:"
+        )
+        files_sent = 0
+        for filename in os.listdir(folder_path):
+            if files_sent >= 3:
                 break
-        except Exception as e:
-            logger.error(f"Ошибка при отправке файла {file_path}: {e}")
+            file_path = os.path.join(folder_path, filename)
+            if os.path.isfile(file_path):
+                try:
+                    await context.bot.send_document(
+                        chat_id=query.message.chat_id,
+                        document=open(file_path, "rb")
+                    )
+                    files_sent += 1
+                except Exception as e:
+                    logger.error(f"Ошибка при отправке файла {file_path}: {e}")
+    else:
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="Извините, меню для данной калорийности пока недоступно."
+        )
 
-# ДОБАВЛЕНО: Кнопка Купить
-await context.bot.send_message(
-    chat_id=query.message.chat_id,
-    text="Меню на 30 дней можно купить нажав на кнопку ниже:",
-    reply_markup=button
-)
-
-# Перенос кнопки "Начать заново"
-await context.bot.send_message(
-    chat_id=query.message.chat_id,
-    text="Если хотите начать заново, нажмите кнопку ниже:",
-    reply_markup=restart_inline
-)
-
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="Если хотите начать заново, нажмите кнопку ниже:",
+        reply_markup=restart_inline
+    )
     return ConversationHandler.END
+
+# Отмена
+async def cancel(update: Update, context: CallbackContext):
+    await update.message.reply_text("Диалог завершен.", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+# Запуск
+def main():
+    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота 
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(restart_callback, pattern="^restart$")
+        ],
+        states={
+            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
+            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
+            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
+            ACTIVITY: [CallbackQueryHandler(get_activity)],
+            GOAL: [CallbackQueryHandler(get_goal)],
+        },
+        fallbacks=[
+        CommandHandler("cancel", cancel),
+        CommandHandler("start", start)  # добавлено, чтобы /start работал в любом состоянии
+    ],
+    )
+
+    app.add_handler(conv_handler)
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get('PORT', 8443)),
+        url_path=TOKEN,
+        webhook_url=f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
+    )
+
+if __name__ == "__main__":
+    main()
