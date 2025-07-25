@@ -177,7 +177,10 @@ async def cancel(update: Update, context: CallbackContext):
 
 # Запуск
 def main():
-    TOKEN = "1630388281:AAEm6i0PQOzDYWqE4Plpie5DmMuj4qWOgwk"  # ← Вставь сюда токен своего бота 
+    TOKEN = os.environ.get("TELEGRAM_TOKEN")
+    if not TOKEN:
+        logger.error("TELEGRAM_TOKEN environment variable not set!")
+        return
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
