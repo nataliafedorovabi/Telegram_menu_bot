@@ -16,6 +16,7 @@ WEIGHT, HEIGHT, AGE, ACTIVITY, GOAL = range(5)
 # Команда /start или Начать заново
 async def start(update: Update, context: CallbackContext):
     context.user_data.clear()
+    logger.info("Received /start from user_id=%s chat_id=%s", getattr(update.effective_user, "id", None), getattr(update.effective_chat, "id", None))
     await update.message.reply_text(
         "Привет! Ответьте на пару вопросов, чтобы подобрать меню именно под вас 😊",
         reply_markup=ReplyKeyboardRemove()
@@ -29,7 +30,7 @@ async def restart_callback(update: Update, context: CallbackContext):
     await query.answer()
     context.user_data.clear()
     await context.bot.send_message(
-        chat_id=query.message.chat_id,
+        chat_id=query.message.chat.id,
         text="Начнем сначала! 😊 Введите ваш вес (в кг):"
     )
     return WEIGHT
@@ -119,7 +120,7 @@ async def get_goal(update: Update, context: CallbackContext):
     folder_path = f"menus/{calories}"
     if os.path.exists(folder_path):
         await context.bot.send_message(
-        chat_id=query.message.chat_id,
+        chat_id=query.message.chat.id,
         text=f"Вам подходит {calories} ккал в день. Отправляю пробное меню на 7 дней:"
         )
         files_sent = 0
@@ -130,7 +131,7 @@ async def get_goal(update: Update, context: CallbackContext):
             if os.path.isfile(file_path):
                 try:
                     await context.bot.send_document(
-                        chat_id=query.message.chat_id,
+                        chat_id=query.message.chat.id,
                         document=open(file_path, "rb")
                     )
                     files_sent += 1
@@ -138,7 +139,7 @@ async def get_goal(update: Update, context: CallbackContext):
                     logger.error(f"Ошибка при отправке файла {file_path}: {e}")
     else:
         await context.bot.send_message(
-            chat_id=query.message.chat_id,
+            chat_id=query.message.chat.id,
             text="Извините, меню для данной калорийности пока недоступно."
         )
     menus_folder = "menus"
@@ -148,7 +149,7 @@ async def get_goal(update: Update, context: CallbackContext):
         if os.path.isfile(file_path):
             try:
                 await context.bot.send_document(
-                    chat_id=query.message.chat_id,
+                    chat_id=query.message.chat.id,
                     document=open(file_path, "rb")
                 )
                 other_files_sent += 1
@@ -158,13 +159,13 @@ async def get_goal(update: Update, context: CallbackContext):
                 logger.error(f"Ошибка при отправке файла {file_path}: {e}")
             
     await context.bot.send_message(
-        chat_id=query.message.chat_id,
+        chat_id=query.message.chat.id,
         text="Меню на 30 дней можно купить нажав на кнопку ниже:",
         reply_markup=button
     )
     
     await context.bot.send_message(
-        chat_id=query.message.chat_id,
+        chat_id=query.message.chat.id,
         text="Если хотите начать заново, нажмите кнопку ниже:",
         reply_markup=restart_inline
     )
@@ -202,12 +203,19 @@ def main():
     )
 
     app.add_handler(conv_handler)
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get('PORT', 8443)),
-        url_path=TOKEN,
-        webhook_url=f"https://telegram-menu-bot-lqrj.onrender.com/{TOKEN}"
-    )
+    webhook_base_url = os.environ.get("WEBHOOK_BASE_URL")
+    if webhook_base_url:
+        webhook_url = webhook_base_url.rstrip("/") + f"/{TOKEN}"
+        logger.info(f"Setting webhook to {webhook_url}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.environ.get('PORT', 8443)),
+            url_path=TOKEN,
+            webhook_url=webhook_url
+        )
+    else:
+        logger.warning("WEBHOOK_BASE_URL is not set. Falling back to run_polling().")
+        app.run_polling()
 
 if __name__ == "__main__":
     main()
